@@ -121,6 +121,30 @@ function listToKMLString(row, headers, maxEltsInCell) {
   return elt;
 }
 
+function resultsToGeoJSON(items) {
+  var i;
+  var obj;
+  var newItems = [];
+
+  for (i = 0; i < items.length; i++) {
+    obj = {};
+    obj.type = 'Feature';
+    obj.id = items[i].parcel_id;
+    // obj.geometry = {
+    //   type: 'MultiPolygon',
+    //   coordinates: [
+    //     items[i].geo_info.centroid[1],
+    //     items[i].geo_info.centroid[0]
+    //   ]
+    // };
+    obj.geometry = items[i].geo_info.geometry;
+    obj.properties = items[i];
+    
+    newItems.push(obj);
+  }
+
+  return newItems;
+}
 
 /*
  * Take a list of rows and export them as KML
@@ -200,7 +224,7 @@ function clone(obj) {
 }
 
 
-/* 
+/*
  * Return only the most recent result for each parcel
  */
 function filterToMostRecent(items) {
@@ -213,13 +237,7 @@ function filterToMostRecent(items) {
   for (i=0; i < items.length; i += 1) {
     var item = items[i];
     var parcelId = item.parcel_id;
-    
-    // console.log("testing========");
-    // console.log(item);
-    // console.log("--");
-    // console.log(latest);
-    // console.log("----");
-    
+        
     if (latest[parcelId] === undefined){
       // If there isn't a most recent result yet, just add it
       latest[parcelId] = item;
@@ -284,9 +302,12 @@ function setup(app, db, idgen, collectionName) {
   // Get all responses for a survey.
   // Sort by creation date, newest first.
   // GET http://localhost:3000/api/surveys/{SURVEY ID}/responses
-  // GET http://localhost:3000/api/surveys/1/responses
-  app.get('/api/surveys/:sid/responses', function(req, response) {
+  // GET http://localhost:3000/api/surveys/1/responses/:geojson
+  app.get('/api/surveys/:sid/responses/:geojson', function(req, response) {
     var surveyid = req.params.sid;
+    var geojson = req.params.geojson;
+
+    console.log("GEOJSON------", geojson);
 
     // Get paging parameters, if any
     var paging = util.getPagingParams(req);
@@ -312,18 +333,24 @@ function setup(app, db, idgen, collectionName) {
           return;
         }
         cursor.toArray(function(err, items) {
-          response.send({responses: items});
+          response.send({
+            type: 'FeatureCollection',
+            features: resultsToGeoJSON(items)
+          });
         });
       });
     });
   });
   
+
   // Get all responses for a specific parcel.
   // Sort by creation date, newest first.
   // TODO: At some point, parcel should become a generic geographic object ID.
   // GET http://localhost:3000/api/surveys/{SURVEY ID}/parcels/{PARCEL ID}/responses
   // GET http://localhost:3000/api/surveys/1/parcels/3728048/responses
   app.get('/api/surveys/:sid/parcels/:parcel_id/responses', function(req, response) {
+
+    console.log("STUFF");
     var surveyid = req.params.sid;
     var parcel_id = req.params.parcel_id;
     getCollection(function(err, collection) {
