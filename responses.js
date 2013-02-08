@@ -121,6 +121,11 @@ function listToKMLString(row, headers, maxEltsInCell) {
   return elt;
 }
 
+/**
+ * Turn a result in our database into valid geoJSON
+ * @param  {Array} items An array of responses
+ * @return {Array}       An array of responses structured as geoJSON
+ */
 function resultsToGeoJSON(items) {
   var i;
   var obj;
@@ -130,14 +135,18 @@ function resultsToGeoJSON(items) {
     obj = {};
     obj.type = 'Feature';
     obj.id = items[i].parcel_id;
-    // obj.geometry = {
-    //   type: 'MultiPolygon',
-    //   coordinates: [
-    //     items[i].geo_info.centroid[1],
-    //     items[i].geo_info.centroid[0]
-    //   ]
-    // };
-    obj.geometry = items[i].geo_info.geometry;
+
+    // Store the shape
+    // Or if there isn't one, use the centroid.
+    if (items[i].geo_info.geometry !== undefined) {
+      obj.geometry = items[i].geo_info.geometry;
+    }else {
+      obj.geometry = {
+        type: 'Point',
+        coordinates: items[i].geo_info.centroid
+      };
+    }
+    
     obj.properties = items[i];
     
     newItems.push(obj);
@@ -162,7 +171,6 @@ function KMLWriter(response, rows, headers, maxEltsInCell){
   response.write("<Document><name>KML Export</name><open>1</open><description></description>\n");
   response.write("<Folder>\n<name>Placemarks</name>\n<description></description>\n");
     
-  console.log(rows);
   // Turn each row into a KML line
   for (i = 0; i < rows.length; i++) {
     response.write(listToKMLString(rows[i], headers, maxEltsInCell));
@@ -237,7 +245,7 @@ function filterToMostRecent(items) {
   for (i=0; i < items.length; i += 1) {
     var item = items[i];
     var parcelId = item.parcel_id;
-        
+
     if (latest[parcelId] === undefined){
       // If there isn't a most recent result yet, just add it
       latest[parcelId] = item;
@@ -301,13 +309,14 @@ function setup(app, db, idgen, collectionName) {
   
   // Get all responses for a survey.
   // Sort by creation date, newest first.
+  // Set format=geojson to request the results back as geojson
+  // Eventually geojson will become our standard response
   // GET http://localhost:3000/api/surveys/{SURVEY ID}/responses
-  // GET http://localhost:3000/api/surveys/1/responses/:geojson
-  app.get('/api/surveys/:sid/responses/:geojson', function(req, response) {
+  // GET http://localhost:3000/api/surveys/1/responses?format=geojson
+  app.get('/api/surveys/:sid/responses', function(req, response) {
     var surveyid = req.params.sid;
-    var geojson = req.params.geojson;
-
-    console.log("GEOJSON------", geojson);
+    var format = req.query.format;
+    console.log("Params: ", format);
 
     // Get paging parameters, if any
     var paging = util.getPagingParams(req);
@@ -333,10 +342,14 @@ function setup(app, db, idgen, collectionName) {
           return;
         }
         cursor.toArray(function(err, items) {
-          response.send({
-            type: 'FeatureCollection',
-            features: resultsToGeoJSON(items)
-          });
+          if (format === 'geojson') {
+            response.send({
+              type: 'FeatureCollection',
+              features: resultsToGeoJSON(items)
+            });
+          }else {
+            response.send({responses: items});
+          }
         });
       });
     });
@@ -349,8 +362,6 @@ function setup(app, db, idgen, collectionName) {
   // GET http://localhost:3000/api/surveys/{SURVEY ID}/parcels/{PARCEL ID}/responses
   // GET http://localhost:3000/api/surveys/1/parcels/3728048/responses
   app.get('/api/surveys/:sid/parcels/:parcel_id/responses', function(req, response) {
-
-    console.log("STUFF");
     var surveyid = req.params.sid;
     var parcel_id = req.params.parcel_id;
     getCollection(function(err, collection) {
@@ -432,10 +443,6 @@ function setup(app, db, idgen, collectionName) {
     }
 
     var total = resps.length;
-    
-    console.log(resps);
-    console.log('Adding ' + total + ' responses to the database.');
-    
     var count = 0;
     getCollection(function(err, collection) {
       var surveyId = req.params.sid;
@@ -461,11 +468,9 @@ function setup(app, db, idgen, collectionName) {
         
         // Add response to database.
         collection.insert(resp, function() {
-          console.log(resp);
           // Check if we've added all of them.
           count += 1;
           if (count === total) {
-            console.log('Created ' + total + 'items. Returning.');
             response.send({responses: resps}, 201);
           }
         });
@@ -495,7 +500,7 @@ function setup(app, db, idgen, collectionName) {
   
   // Get all responses in a bounding box
   // Sort by creation date, newest first.
-  // GET http://localhost:3000/api/surveys/{SURVEY ID}/reponses/in/lower-left lat,lower-left lng, upper-right lat, upper-right lng
+  // GET http://localhost:3000/api/surveys/{SURVEY ID}/reponses/in/lower-left lng,lower-left lat, upper-right lng, upper-right lat
   // GET http://localhost:3000/api/surveys/{SURVEY ID}/reponses/in/1,2,3,4
   app.get('/api/surveys/:sid/responses/in/:bounds', function(req, response) {
     var i, ln;
@@ -514,7 +519,6 @@ function setup(app, db, idgen, collectionName) {
     
     var bbox = [[coords[0], coords[1]], [coords[2],  coords[3]]];
     var query = {'survey': surveyid, 'geo_info.centroid': {"$within": { "$box": bbox}}};
-    console.log("Bounds query ====================");
     
     getCollection(function(err, collection) {
       collection.find(query,
@@ -587,7 +591,7 @@ function setup(app, db, idgen, collectionName) {
               items[i].source.collector,
               items[i].created,
               items[i].source.type,
-              items[i].geo_info.centroid[1] + ',' + items[i].geo_info.centroid[0]
+              items[i].geo_info.centroid[0] + ',' + items[i].geo_info.centroid[1]
             ];
 
             // Then, add the survey results

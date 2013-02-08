@@ -227,6 +227,30 @@ suite('Responses', function () {
       });
     });
 
+    test(' all responses for a survey as GeoJSON', function (done) {
+      request.get({url: BASEURL + '/surveys/' + surveyId + '/responses?format=geojson'}, function (error, response, body) {
+        should.not.exist(error);
+        response.statusCode.should.equal(200);
+        response.should.be.json;
+
+        var parsed = JSON.parse(body);
+        parsed.should.have.property('type');
+        parsed.features.length.should.be.above(1);
+        var i;
+        var prevTime = Number.MAX_VALUE;
+        var created;
+        for (i = 0; i < parsed.features.length; i += 1) {
+          parsed.features[i].should.have.property('geometry');
+          parsed.features[i].should.have.property('geometry');
+          parsed.features[i].properties.survey.should.equal(surveyId);
+          created = Date.parse(parsed.features[i].properties.created);
+          created.should.not.be.above(prevTime);
+          prevTime = created;
+        }
+        done();
+      });
+    });
+
     test('Filtering of results', function (done) {
       var results = dataTwo().responses;
       var sanitizedResults = filterToRemoveResults(results);
