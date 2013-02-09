@@ -131,6 +131,10 @@ function resultsToGeoJSON(items) {
   var obj;
   var newItems = [];
 
+  if (items.length === 0) {
+    // do stuff
+  }
+
   for (i = 0; i < items.length; i++) {
     obj = {};
     obj.type = 'Feature';
@@ -340,8 +344,10 @@ function setup(app, db, idgen, collectionName) {
           console.log('Error retrieving responses for survey ' + surveyid + ': ' + err.message);
           response.send();
           return;
-        }
+        }        
         cursor.toArray(function(err, items) {
+          // TODO
+          // Log the error
           if (format === 'geojson') {
             response.send({
               type: 'FeatureCollection',
