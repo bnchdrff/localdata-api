@@ -5,6 +5,7 @@ var bcrypt = require('bcrypt');
 var express = require('express');
 var http = require('http');
 var mongo = require('mongodb');
+var nodemailer = require("nodemailer");
 
 var settings = require('./settings.js');
 
@@ -22,11 +23,14 @@ function setup(app, db, idgen, collectionName) {
 
   var User = {};
 
-  // Sanitize user input to save to the database
-  //  Keeps only the fields we wants
-  //  Hashes the password
-  //
-  // @param {Object} user
+
+  /**
+   * Sanitize user input to save to the database
+   * Keeps only the fields we wants
+   * Hashes the password
+   * @param  {Object} user
+   * @return {Object}      A safe user object
+   */
   User.sanitizeToSave = function(user) {
     var safeUser = {};
     safeUser.email = user.email;
@@ -43,14 +47,22 @@ function setup(app, db, idgen, collectionName) {
     if(user.password) {
       safeUser.hash = bcrypt.hashSync(user.password, 10);
     }
+
+    // Used for password resets (params token and expiry)
+    if(user.reset) {
+      safeUser.reset = user.reset;
+    }
     
     return safeUser;
   };
 
-  // Find a given user
-  // @param {Object} query An object with a 'username' parameter.
-  //  username should be an email
-  // @param {Function} done
+
+  /**
+   * Find a given user
+   * @param  {Object}   query An object with a 'username' parameter (for us,
+   *                          user name is email)
+   * @param  {Function} done  Params (error, user)
+   */
   User.findOne = function(query, done) {
     getCollection(function(error, collection) {
       collection.findOne({email: query.email}, function(error, user){
@@ -72,11 +84,13 @@ function setup(app, db, idgen, collectionName) {
     });
   };
 
-  // Create a given user
-  //
-  // @param {Object} query An object with a 'username', 'name', and 'password'
-  //  parameters. Username must be an email.
-  // @param {Function} done
+
+  /**
+   * Create a given user
+   * @param  {Object}   query An object with 'username', 'name', and 'password'
+                              parameters. Username must be an email.
+   * @param  {Function} done  Params (error, user)
+   */
   User.create = function(query, done) {
     if(!query.email || query.email === '') {
       done({
@@ -123,12 +137,11 @@ function setup(app, db, idgen, collectionName) {
   };
 
 
-  // Update a given user
-  // WARNING: The caller must verify the user's identity.
-  // This just does what it's told 
-  //
-  // @param {Object} query A user object, with ._id property
-  // @param {Function} done
+  /**
+   * Update a given user
+   * @param  {Object}   query A user object, with ._id property
+   * @param  {Function} done
+   */
   User.update = function(query, done) {
     if(!query.email || query.email === '') {
       done({code: 400, err: 'Email required'}, null);
@@ -177,8 +190,7 @@ function setup(app, db, idgen, collectionName) {
   passport.serializeUser(function(user, done) {
     console.log('Serializing');
 
-    // We don't want to be passing around sensitive stuff
-    // Like password hashes
+    // We don't want to be passing around sensitive stuff like password hashes
     var safeUser = {};
     safeUser.name = user.name;
     safeUser.email = user.email;
@@ -228,9 +240,14 @@ function setup(app, db, idgen, collectionName) {
     }
   ));
 
-  // Login routes ..............................................................
 
-  // Cheap way to save the URL parameter
+  // User routes ..............................................................
+  
+  /**
+   * GET /auth/return
+   * Save the current redirectTo paramter to the session.
+   * Used when redirecting to the login page
+   */
   app.get('/auth/return', function(req, res){
     req.session.redirectTo = req.query.redirectTo;
     res.redirect('/login');
@@ -273,6 +290,68 @@ function setup(app, db, idgen, collectionName) {
       })(req, response, next);
 
   });
+
+  /**
+   * GET /api/user/reset
+   * Reset a user's password
+   * Or, given a valid reset token, allow the user to reset their password.
+   */
+  app.get('/api/user/reset', function(req, response, next){
+    // Get the parameters
+    var email = 1;
+
+    // Find the user
+    User.findOne({ email: email }, function(error, user) {
+      if (error) {
+        return next(error);
+      }
+
+      if(!user) {
+        console.log('Login: user not found');
+        var error2 = {
+          'name': 'BadRequestError',
+          'message': 'Account not found'
+        };
+
+        
+      }
+
+      // Generate a new token
+      // Set an expiration date
+      var token = 4;
+
+      // Encrypt it
+
+      // Save it to the user
+
+
+      // Send the token via email
+
+    });
+  });
+
+  /**
+   * Reset a user's password
+   * Requires a valid email (tied to a user), password, and auth token
+   */
+  app.post('/api/user/reset', function(req, response, next){
+    // Get the parameters
+    var email = 1;
+    var password = 2;
+    var token = 3;
+
+    // User.update
+    
+    // If there is a token, check if there is a password
+    // If there are both, then set the user's new password
+    // If we're successfull, log in the user.
+    // If the user is not found, return an error.
+    // If there is no token, return an error.
+    // If the token has expired, return an error.
+
+    // Log the user in if all of that succeeds.
+  });
+
 
   // POST /api/user
   // Create a user
