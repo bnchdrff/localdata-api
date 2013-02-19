@@ -59,13 +59,12 @@ function setup(app, db, idgen, collectionName) {
 
   /**
    * Find a given user
-   * @param  {Object}   query An object with a 'username' parameter (for us,
-   *                          user name is email)
+   * @param  {Object}   query An object, ideally with a 'email' parameter
    * @param  {Function} done  Params (error, user)
    */
   User.findOne = function(query, done) {
     getCollection(function(error, collection) {
-      collection.findOne({email: query.email}, function(error, user){
+      collection.findOne(query, function(error, user){
         if(error) {
           done(error);
         }
@@ -140,7 +139,7 @@ function setup(app, db, idgen, collectionName) {
   /**
    * Update a given user
    * @param  {Object}   query A user object, with ._id property
-   * @param  {Function} done
+   * @param  {Function} done  Params (error)
    */
   User.update = function(query, done) {
     if(!query.email || query.email === '') {
@@ -292,64 +291,144 @@ function setup(app, db, idgen, collectionName) {
   });
 
   /**
-   * GET /api/user/reset
+   * Given a token, hash it for storage / reuse
+   * Broken out into a function so it can be easily overridden by tests
+   * @param  {String} token
+   * @return {String}       bcrypt hashed token
+   */
+  User.hashToken = function(token) {
+    return bcrypt.hashSync(token, 10);
+  };
+
+  User.createTokenExpiry = function(token) {
+    var now = new Date();
+    return now.setDate(now.getDate()+1);
+  };
+
+  /**
+   * POST /api/user/forgot
    * Reset a user's password
    * Or, given a valid reset token, allow the user to reset their password.
    */
-  app.get('/api/user/reset', function(req, response, next){
-    // Get the parameters
-    var email = 1;
+  app.post('/api/user/forgot', function(req, response, next){
+    var email = req.body.user.email;
+    if(email === undefined) {
+      response.send('Email required', 400);
+      return;
+    }
 
     // Find the user
     User.findOne({ email: email }, function(error, user) {
       if (error) {
+        // TODO: Log
         return next(error);
       }
-
       if(!user) {
-        console.log('Login: user not found');
-        var error2 = {
-          'name': 'BadRequestError',
-          'message': 'Account not found'
-        };
-
-        
+        // TODO: Log
+        response.send('User not found', 400);
+        return;
       }
 
       // Generate a new token
-      // Set an expiration date
-      var token = 4;
-
-      // Encrypt it
+      // & set an expiration date
+      var token = idgen();
+      var expiry = User.createTokenExpiry();
+      
+      // We store the token hashed, since it's a password equivalent.
+      var tokenHash = User.hashToken(token);
 
       // Save it to the user
+      user.reset = {
+        token: tokenHash,
+        expiry: expiry
+      };
+      console.log("About to update user", user);
+      User.update(user, function(error, user){
+        if(error) {
+          // TODO: Log
+          console.log("Error saving user", error);
+          return next(error);
+        }
 
-
-      // Send the token via email
-
+        // Send the token via email
+        response.send(200);
+      });
     });
   });
 
   /**
+   * POST /api/user/reset
    * Reset a user's password
    * Requires a valid email (tied to a user), password, and auth token
    */
   app.post('/api/user/reset', function(req, response, next){
     // Get the parameters
-    var email = 1;
-    var password = 2;
-    var token = 3;
+    var token = req.body.reset.token;
+    var password = req.body.reset.password;
 
-    // User.update
-    
-    // If there is a token, check if there is a password
-    // If there are both, then set the user's new password
-    // If we're successfull, log in the user.
-    // If the user is not found, return an error.
-    // If there is no token, return an error.
-    // If the token has expired, return an error.
+    if(!token) {
+      response.send('Token required', 400);
+      return;
+    }
+    if(!password) {
+      response.send('Password required', 400);
+      return;
+    }
 
-    // Log the user in if all of that succeeds.
+    // We store the token hashed, since it's a password equivalent.
+    var tokenHash = User.hashToken(token);
+
+    // Find the user based on the token
+    var user = User.findOne({'reset.token': tokenHash}, function(error, user){
+      if(error) {
+        return next(error);
+      }
+      if(user === null) {
+        console.log('User not found');
+        response.send('User not found', 400);
+        return;
+      }
+
+      console.log("Found user", user);
+      // Check that the user has a reset object
+      if (user.reset === undefined) {
+        response.send('No token', 400);
+        return;
+      }
+
+      // Check that the token hasn't expired.
+      var now = new Date().getTime();
+      var expiry = new Date(user.reset.expiry);
+      console.log("Expiry", expiry);
+      if(expiry.getTime() < now) {
+        console.log('Token expired');
+        response.send('Token expired', 400);
+        return;
+      }
+
+      // Change their password
+      user.password = password;
+      // Invalidate the reset token
+      delete user.reset;
+
+      User.update(user, function(error) {
+        if(error) {
+          return next(error);
+        }
+
+        // Log in the user
+        req.logIn(user, function(error) {
+          if (error) {
+            // TODO:
+            // Log
+            console.log('Unexpected error', error);
+            response.send(401);
+          }
+          response.redirect('/api/user');
+          return;
+        });
+      });
+    });
   });
 
 
@@ -402,7 +481,7 @@ function setup(app, db, idgen, collectionName) {
 // Simple route middleware to ensure user is authenticated.
 //   Use this route middleware on any resource that needs to be protected.  If
 //   the request is authenticated (typically via a persistent login session),
-//   the request will proceed.  
+//   the request will proceed.
 //   Otherwise, the user will be sent a 401.
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {

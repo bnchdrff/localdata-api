@@ -18,6 +18,7 @@ var BASEURL = 'http://localhost:' + settings.port + '/api';
 var BASE_LOGOUT_URL = 'http://localhost:' + settings.port + '/logout';
 var USER_URL = BASEURL + '/user';
 var LOGIN_URL = BASEURL + '/login';
+var FORGOT_URL = BASEURL + '/user/forgot';
 var RESET_URL = BASEURL + '/user/reset';
 
 suite('Users -', function () {
@@ -240,7 +241,6 @@ suite('Users -', function () {
       });
     });
 
-
     test('Log in a user with the wrong password', function (done) {
       setupTest(function(error, response) {
         var badUser = generateUser();
@@ -255,47 +255,49 @@ suite('Users -', function () {
       });
     });
 
-
     test('Reset a user password', function (done) {
       setupTest(function(error, response) {
         var user = generateUser();
         // Set a reset token
-        request.get({url: RESET_URL, json: {email: user.email} }, function(error, response, body) {
+        request.post({url: FORGOT_URL, json: {user: {email: user.email}}}, function(error, response, body) {
           should.not.exist(error);
-          response.statusCode.should.equal(302);
+          response.statusCode.should.equal(200);
 
-          console.log("generated token");
           // Get the reset token
           // (uses an internal API; by default, this is emailed to the user)
           // TODO:
           // mock the email sending function to report the email here?
-          var user = users.User.findOne({ username: user.email }, function(error, user) {
-            console.log("Got token");
+          user = users.User.findOne({ email: user.email }, function(error, user) {
 
             // Change the password using the token
             var newPassword = 'placebased';
             var resetObj = {
-              token: user.reset.token,
-              password: newPassword
+              'reset': {
+                token: user.reset.token,
+                password: newPassword
+              }
             };
-            request.post({url: RESET_URL, json: resetObj}, function(error, response, body) {
-                          console.log("Posted to reset");
 
+            // Override the token hash function to just pass the value through
+            users.User.hashToken = function(token) {
+              return token;
+            };
+
+            request.post({url: RESET_URL, json: resetObj}, function(error, response, body) {
+              // We should be redirected to login.
               should.not.exist(error);
               response.statusCode.should.equal(302);
 
               // Check to see that we change the password successfully
               user.password = newPassword;
               request.get({url: LOGIN_URL, json: user}, function(error, response, body) {
-                                          console.log("Trying to login");
-
                 should.not.exist(error);
-                response.statusCode.should.equal(302);
+                response.statusCode.should.equal(200);
 
                 // Make sure that the token doesn't work twice
                 request.post({url: RESET_URL, json: resetObj}, function(error, response, body) {
-                          console.log("Checking token");
-                  should.exist(error);
+                  should.not.exist(error);
+                  response.statusCode.should.equal(400);
                   done();
                 });
               });
