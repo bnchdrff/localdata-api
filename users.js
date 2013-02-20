@@ -5,9 +5,9 @@ var bcrypt = require('bcrypt');
 var express = require('express');
 var http = require('http');
 var mongo = require('mongodb');
-var nodemailer = require("nodemailer");
 
 var settings = require('./settings.js');
+var templates = require('./templates/templates.js');
 
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
@@ -22,7 +22,6 @@ function setup(app, db, idgen, collectionName) {
   }
 
   var User = {};
-
 
   /**
    * Sanitize user input to save to the database
@@ -350,7 +349,31 @@ function setup(app, db, idgen, collectionName) {
           return next(error);
         }
 
+        // Generate the email
+        console.log(req.headers.host);
+        var host = req.headers.host;
+        var resetText = templates.render('email.passwordReset', {
+          'link': host + '/reset/' + token
+        });
+        console.log(resetEmail);
+        var message = {
+          // sender info
+          from: 'LocalData <support@localdata.com>',
+          
+          // Comma separated list of recipients
+          to: '"Receiver Name" <receiver@example.com>',
+          
+          // Subject of the message
+          subject: 'Nodemailer is unicode friendly ✔', //
+
+          // plaintext body
+          text: 'Hello to myself!'
+        };
+
         // Send the token via email
+        
+  
+        // Tell the client we've succeeded.
         response.send(200);
       });
     });

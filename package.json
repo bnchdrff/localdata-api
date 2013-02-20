@@ -20,6 +20,7 @@
     , "bcrypt" : ">= 0.5"
     , "lru-cache" : "2.2.2"
     , "nodemailer" : "0.3.x"
+    , "ejs" : "0.8.x"
   }
   , "devDependencies": {
       "mocha" : "https://github.com/visionmedia/mocha/tarball/master"
