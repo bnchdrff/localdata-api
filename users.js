@@ -313,7 +313,7 @@ function setup(app, db, idgen, collectionName) {
   app.post('/api/user/forgot', function(req, response, next){
     var email = req.body.user.email;
     if(email === undefined) {
-      response.send('Email required', 400);
+      response.send({ type: 'PasswordResetError', message: 'Email required' }, 400);
       return;
     }
 
@@ -325,7 +325,7 @@ function setup(app, db, idgen, collectionName) {
       }
       if(!user) {
         // TODO: Log
-        response.send('User not found', 400);
+        response.send({ type: 'PasswordResetError', message: 'Account not found' }, 400);
         return;
       }
 
@@ -367,11 +367,11 @@ function setup(app, db, idgen, collectionName) {
     var password = req.body.reset.password;
 
     if(!token) {
-      response.send('Token required', 400);
+      response.send({ type: 'PasswordResetError', message: 'Password reset code required' }, 400);
       return;
     }
     if(!password) {
-      response.send('Password required', 400);
+      response.send({ type: 'PasswordResetError', message: 'Password required' }, 400);
       return;
     }
 
@@ -392,7 +392,7 @@ function setup(app, db, idgen, collectionName) {
       console.log("Found user", user);
       // Check that the user has a reset object
       if (user.reset === undefined) {
-        response.send('No token', 400);
+        response.send({ type: 'PasswordResetError', message: 'Email required' }, 400);
         return;
       }
 
