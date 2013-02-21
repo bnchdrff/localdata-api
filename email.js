@@ -11,27 +11,30 @@ var transport = nodemailer.createTransport("SES", {
   AWSSecretKey: settings.aws_secret
 });
 
+// TODO: Use DKIM
+// transport.useDKIM({
+//     domainName: "localdata.com",
+//     keySelector: "dkimselector",
+//     privateKey: fs.readFileSync("private_key.pem")
+// });
 
 /**
  * Send an email
- * @param  {String}   to      To address; '"Matt Hampel" <matth@localdata.com>'
- *                            or just 'matth@localdata.com'
- * @param  {String}   subject
- * @param  {String}   text    Text body for the email
+ * @param  {Object}   options Options: to, subject, text; all strings
  * @param  {Function} done    Optional error parameter
  */
-mailer.send = function(to, subject, text, done) {
+mailer.send = function(options, done) {
   var message = {
     from: 'LocalData <support@localdata.com>',
     
     // Comma separated list of recipients
-    to: to,
+    to: options.to,
     
     // Subject of the message
-    subject: subject,
+    subject: options.subject,
 
     // plaintext body
-    text: text
+    text: options.text
   };
 
   transport.sendMail(message, function(error){

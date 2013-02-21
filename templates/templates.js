@@ -6,15 +6,17 @@ var fs = require('fs');
 
 var templates = module.exports;
 
-templates.forgotPassword = 'email/forgotPassword.ejs';
+templates.passwordReset = 'email/forgotPassword.ejs';
 
-templates.render = function(template, options) {
-  var path = './' + templates[template];
-	fs.readFile(path, function(err, data) {
-    if (err) {
-      // TODO:
-      // Log errors
-    }
-    return ejs.compile(data, options);
-  });
+/**
+ * Render a template
+ * @param  {String}   template Key for template
+ * @param  {Object}   options  Parameters to fill the template
+ * @return {String}            The rendered template
+ */
+templates.render = function(templateKey, options) {
+  var path = './templates/' + templates[templateKey];
+  console.log(path);
+	var template = fs.readFileSync(path, 'utf8');
+  return ejs.render(template, options);
 };

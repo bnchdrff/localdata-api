@@ -5,7 +5,9 @@ var bcrypt = require('bcrypt');
 var express = require('express');
 var http = require('http');
 var mongo = require('mongodb');
+var uuid = require('node-uuid');
 
+var mailer = require('./email.js');
 var settings = require('./settings.js');
 var templates = require('./templates/templates.js');
 
@@ -44,7 +46,7 @@ function setup(app, db, idgen, collectionName) {
     }
 
     if(user.password) {
-      safeUser.hash = bcrypt.hashSync(user.password, 10);
+      safeUser.hash = User.hash(user.password);
     }
 
     // Used for password resets (params token and expiry)
@@ -295,11 +297,16 @@ function setup(app, db, idgen, collectionName) {
    * @param  {String} token
    * @return {String}       bcrypt hashed token
    */
-  User.hashToken = function(token) {
+  User.hash = function(token) {
     return bcrypt.hashSync(token, 10);
   };
 
-  User.createTokenExpiry = function(token) {
+  /**
+   * Return the date when a token should expire
+   * Right now, that's 24 hours
+   * @return {Date}
+   */
+  User.createTokenExpiry = function() {
     var now = new Date();
     return now.setDate(now.getDate()+1);
   };
@@ -323,18 +330,17 @@ function setup(app, db, idgen, collectionName) {
         return next(error);
       }
       if(!user) {
-        // TODO: Log
         response.send({ type: 'PasswordResetError', message: 'Account not found' }, 400);
         return;
       }
 
       // Generate a new token
       // & set an expiration date
-      var token = idgen();
+      var token = uuid.v4(); // random uuid (v1 is time-based)
       var expiry = User.createTokenExpiry();
       
       // We store the token hashed, since it's a password equivalent.
-      var tokenHash = User.hashToken(token);
+      var tokenHash = User.hash(token);
 
       // Save it to the user
       user.reset = {
@@ -352,29 +358,23 @@ function setup(app, db, idgen, collectionName) {
         // Generate the email
         console.log(req.headers.host);
         var host = req.headers.host;
-        var resetText = templates.render('email.passwordReset', {
-          'link': host + '/reset/' + token
+        var resetText = templates.render('passwordReset', {
+          'link': 'https://' + host + '/reset/' + token
         });
-        console.log(resetEmail);
         var message = {
-          // sender info
-          from: 'LocalData <support@localdata.com>',
-          
-          // Comma separated list of recipients
-          to: '"Receiver Name" <receiver@example.com>',
-          
-          // Subject of the message
-          subject: 'Nodemailer is unicode friendly ✔', //
-
-          // plaintext body
-          text: 'Hello to myself!'
+          to: email,
+          subject: 'Your LocalData password',
+          text: resetText
         };
 
-        // Send the token via email
-        
-  
-        // Tell the client we've succeeded.
-        response.send(200);
+        // Send the email!
+        mailer.send(message, function(error){
+          if(error){
+            return next(error);
+          }
+          response.send(200);
+        });
+              
       });
     });
   });
