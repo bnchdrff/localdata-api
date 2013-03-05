@@ -301,6 +301,16 @@ function setup(app, db, idgen, collectionName) {
   };
 
   /**
+   * Check if a given token is correct
+   * @param  {String} token       Token to check against the reference 
+   * @param  {String} refence     Stored value
+   * @return {Boolean}            
+   */
+  User.check = function(token, reference) {
+    return bcrypt.compareSync(token, reference);
+  };
+
+  /**
    * Return the date when a token should expire
    * Right now, that's 24 hours
    * @return {Date}
@@ -346,17 +356,19 @@ function setup(app, db, idgen, collectionName) {
         token: tokenHash,
         expiry: expiry
       };
-      User.update(user, function(error, user){
+      User.update(user, function(error){
         if(error) {
           // TODO: Log
           console.log("Error saving user", error);
           return next(error);
         }
 
+        console.log('user saved', user);
+
         // Generate the email
         var host = req.headers.host;
         var resetText = templates.render('passwordReset', {
-          'link': 'https://' + host + '/reset/' + token
+          'link': 'https://' + host + '/#/reset/' + token
         });
         var message = {
           to: email,
@@ -383,6 +395,7 @@ function setup(app, db, idgen, collectionName) {
    */
   app.post('/api/user/reset', function(req, response, next){
     // Get the parameters
+    var email = req.body.reset.email;
     var token = req.body.reset.token;
     var password = req.body.reset.password;
 
@@ -395,23 +408,30 @@ function setup(app, db, idgen, collectionName) {
       return;
     }
 
-    // We store the token hashed, since it's a password equivalent.
-    var tokenHash = User.hashToken(token);
-
     // Find the user based on the token
-    var user = User.findOne({'reset.token': tokenHash}, function(error, user){
+    var user = User.findOne({'email': email}, function(error, user){
+
       if(error) {
         return next(error);
       }
+
+      // Check if we have the user
       if(user === null) {
         console.log('User not found');
-        response.send('User not found', 400);
+        response.send({ type: 'PasswordResetError', message: 'Account not found' }, 400);
         return;
       }
 
-      // Check that the user has a reset object
-      if (user.reset === undefined) {
-        response.send({ type: 'PasswordResetError', message: 'Email required' }, 400);
+      if(user.reset === undefined) {
+        console.log('No reset code');
+        response.send({ type: 'PasswordResetError', message: 'Your reset code is not valid' }, 400);
+        return;
+      }
+
+      // Check if the token is correct
+      if(!User.check(token, user.reset.token)) {
+        console.log('Token incorrect');
+        response.send({ type: 'PasswordResetError', message: 'Your reset code is not valid' }, 400);
         return;
       }
 
@@ -420,7 +440,7 @@ function setup(app, db, idgen, collectionName) {
       var expiry = new Date(user.reset.expiry);
       if(expiry.getTime() < now) {
         console.log('Token expired');
-        response.send('Token expired', 400);
+        response.send({ type: 'PasswordResetError', message: 'Your reset code is not valid' }, 400);
         return;
       }
 

@@ -273,14 +273,15 @@ suite('Users -', function () {
             var newPassword = 'placebased';
             var resetObj = {
               'reset': {
+                email: user.email,
                 token: user.reset.token,
                 password: newPassword
               }
             };
 
             // Override the token hash function to just pass the value through
-            users.User.hashToken = function(token) {
-              return token;
+            users.User.check = function(token, reference) {
+              return true;
             };
 
             request.post({url: RESET_URL, json: resetObj}, function(error, response, body) {
@@ -290,7 +291,7 @@ suite('Users -', function () {
 
               // Check to see that we change the password successfully
               user.password = newPassword;
-              request.get({url: LOGIN_URL, json: user}, function(error, response, body) {
+              request.get({url: USER_URL, json: user}, function(error, response, body) {
                 should.not.exist(error);
                 response.statusCode.should.equal(200);
 
