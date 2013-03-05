@@ -150,7 +150,7 @@ function setup(app, db, idgen, collectionName) {
 
     // We only want to save the parameters we decide on.
     var safeQuery = User.sanitizeToSave(query);
-    
+
     // Blank out the query so we can't use it anymore
     query = {};
 
@@ -242,7 +242,7 @@ function setup(app, db, idgen, collectionName) {
 
 
   // User routes ..............................................................
-  
+
   /**
    * GET /auth/return
    * Save the current redirectTo paramter to the session.
@@ -288,7 +288,6 @@ function setup(app, db, idgen, collectionName) {
           response.send(400, info.message);
         }
       })(req, response, next);
-
   });
 
   /**
@@ -338,7 +337,7 @@ function setup(app, db, idgen, collectionName) {
       // & set an expiration date
       var token = uuid.v4(); // random uuid (v1 is time-based)
       var expiry = User.createTokenExpiry();
-      
+
       // We store the token hashed, since it's a password equivalent.
       var tokenHash = User.hash(token);
 
@@ -347,7 +346,6 @@ function setup(app, db, idgen, collectionName) {
         token: tokenHash,
         expiry: expiry
       };
-      console.log("About to update user", user);
       User.update(user, function(error, user){
         if(error) {
           // TODO: Log
@@ -356,7 +354,6 @@ function setup(app, db, idgen, collectionName) {
         }
 
         // Generate the email
-        console.log(req.headers.host);
         var host = req.headers.host;
         var resetText = templates.render('passwordReset', {
           'link': 'https://' + host + '/reset/' + token
@@ -374,7 +371,7 @@ function setup(app, db, idgen, collectionName) {
           }
           response.send(200);
         });
-              
+
       });
     });
   });
@@ -412,7 +409,6 @@ function setup(app, db, idgen, collectionName) {
         return;
       }
 
-      console.log("Found user", user);
       // Check that the user has a reset object
       if (user.reset === undefined) {
         response.send({ type: 'PasswordResetError', message: 'Email required' }, 400);
@@ -422,7 +418,6 @@ function setup(app, db, idgen, collectionName) {
       // Check that the token hasn't expired.
       var now = new Date().getTime();
       var expiry = new Date(user.reset.expiry);
-      console.log("Expiry", expiry);
       if(expiry.getTime() < now) {
         console.log('Token expired');
         response.send('Token expired', 400);
