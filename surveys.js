@@ -113,6 +113,64 @@ function setup(app, db, idgen, collectionName) {
     });
   });
 
+
+  // Set the users on a survey
+  // GET http://localhost:3000/api/surveys/{SURVEY ID}/users
+  app.post('/api/surveys/:sid', function(req, response) {
+    var handleError = util.makeErrorHandler(response);
+
+    getCollection(function(err, collection) {
+      if (handleError(err)) { return; }
+
+      // Find the survey
+      collection.find({id: req.params.sid}, function(err, cursor) {
+        if (handleError(err)) { return; }
+
+        cursor.toArray(function(err, items) {
+          if (handleError(err)) { return; }
+
+          var survey = items[0];
+          var trimmedSurvey;
+
+          // If there are no results, it's a 404
+          if (items.length === 0) {
+            response.send(404);
+            return;
+          }
+
+          // We should only get one result
+          // TODO: log this better
+          if (items.length > 1) {
+            console.log('!!! WARNING: There should only be one item with a given ID');
+            console.log('!!! Found ' + items.length);
+            console.log('!!! Items: ' + JSON.stringify(items));
+          }
+
+          var body = request.body.user;
+
+          User.findOne({email: body.email}, function(error, user){
+            if(body.action === 'add') {
+
+            }
+
+            if(body.action === 'remove') {
+
+            }
+
+            // Attempt to find the user
+            // Get the user ID
+            // Add the user ID to the array
+
+            // Save the survey
+            // Success / failure
+            response.send(200);
+            return;
+          });
+        });
+      });
+    });
+  });
+
   // Get the survey ID associated with a slug
   // Not authenticated.
   // GET http://localhost:3000/api/slugs/{SLUG}
