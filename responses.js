@@ -122,7 +122,7 @@ function listToKMLString(row, headers, maxEltsInCell) {
 }
 
 /**
- * Turn a result in our database into valid geoJSON
+ * Turn stored parcel results into geoJSON
  * @param  {Array} items An array of responses
  * @return {Array}       An array of responses structured as geoJSON
  */
@@ -131,28 +131,25 @@ function resultsToGeoJSON(items) {
   var obj;
   var newItems = [];
 
-  if (items.length === 0) {
-    // do stuff
-  }
-
   for (i = 0; i < items.length; i++) {
     obj = {};
     obj.type = 'Feature';
-    obj.id = items[i].parcel_id;
 
-    // Store the shape
+    // Get the shape
     // Or if there isn't one, use the centroid.
     if (items[i].geo_info.geometry !== undefined) {
+      obj.id = items[i].parcel_id;
       obj.geometry = items[i].geo_info.geometry;
     }else {
+      obj.id = items[i]._id;
       obj.geometry = {
         type: 'Point',
         coordinates: items[i].geo_info.centroid
       };
     }
-    
+
     obj.properties = items[i];
-    
+
     newItems.push(obj);
   }
 
@@ -310,7 +307,7 @@ function setup(app, db, idgen, collectionName) {
   function getCollection(cb) {
     return db.collection(collectionName, cb);
   }
-  
+
   // Get all responses for a survey.
   // Sort by creation date, newest first.
   // Set format=geojson to request the results back as geojson
@@ -320,7 +317,7 @@ function setup(app, db, idgen, collectionName) {
   app.get('/api/surveys/:sid/responses', function(req, response) {
     var surveyid = req.params.sid;
     var format = req.query.format;
-    console.log("Params: ", format);
+    console.log("Format: ", format);
 
     // Get paging parameters, if any
     var paging = util.getPagingParams(req);
@@ -332,26 +329,34 @@ function setup(app, db, idgen, collectionName) {
     }
 
     getCollection(function(err, collection) {
-      var options = {sort: [['created', sort]]};
+      // Tell mongo to sort the results by the date created
+      var options = {
+        sort: [['created', sort]]
+      };
+
+      // Set up pagination options, if any
       if (paging !== null) {
         options.skip = paging.startIndex;
         options.limit = paging.count;
       }
+
       collection.find({'survey': surveyid},
                       options,
                       function(err, cursor) {
+
         if (err) {
           console.log('Error retrieving responses for survey ' + surveyid + ': ' + err.message);
           response.send();
           return;
-        }        
+        }
+
         cursor.toArray(function(err, items) {
-          // TODO
-          // Log the error
           if (format === 'geojson') {
             response.send({
-              type: 'FeatureCollection',
-              features: resultsToGeoJSON(items)
+              responses: {
+                type: 'FeatureCollection',
+                features: resultsToGeoJSON(items)
+              }
             });
           }else {
             response.send({responses: items});
@@ -360,7 +365,7 @@ function setup(app, db, idgen, collectionName) {
       });
     });
   });
-  
+
 
   // Get all responses for a specific parcel.
   // Sort by creation date, newest first.
