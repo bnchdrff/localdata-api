@@ -43,14 +43,16 @@ function setup(app, db, idgen, collectionName) {
     if(user.password) {
       safeUser.hash = bcrypt.hashSync(user.password, 10);
     }
-    
+
     return safeUser;
   };
 
-  // Find a given user
-  // @param {Object} query An object with a 'username' parameter.
-  //  username should be an email
-  // @param {Function} done
+
+  /**
+   * Find a given user
+   * @param  {Object}   query An object with an 'email' parameter
+   * @param  {Function} done  Args (error, user)
+   */
   User.findOne = function(query, done) {
     getCollection(function(error, collection) {
       collection.findOne({email: query.email}, function(error, user){
@@ -70,6 +72,16 @@ function setup(app, db, idgen, collectionName) {
       });
 
     });
+  };
+
+
+  /**
+   * Find a list of users by ID
+   * @param  {Array}    users An array of user IDs
+   * @param  {Function} done  Params error, and an array of user objects
+   */
+  User.find = function(users, done) {
+    
   };
 
   // Create a given user

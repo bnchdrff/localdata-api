@@ -68,22 +68,6 @@ suite('Surveys', function () {
     } ]
   };
 
-  var sampleSurvey = {
-    "name": "Sample survey",
-    "slug": "sample-survey",
-    "id": "1234",
-    "users": ["2"],
-    "paperinfo": {
-      "dpi": 150,
-      "regmarks": [
-        {"type": 0, "bbox": [20, 20, 70, 70]},
-        {"type": 0, "bbox": [20, 1580, 70, 1630]},
-        {"type": 0, "bbox": [1205, 1580, 1255, 1630]}
-      ],
-      "barcode": {"bbox": [1055, 20, 1255, 220]}
-    }
-  };
-
   var data_slug = {
     "surveys" : [ {
       "name": "Someone's cool, \"hip\" survey ~!@#$%^&*()-=_+<>?,./;: title",
@@ -110,8 +94,8 @@ suite('Surveys', function () {
 
   suite("Utilities:", function() {
     test('Filter sensitive data from a survey', function (done) {
-      var filteredSurvey = surveys.filterSurvey(sampleSurvey);
-      
+      var filteredSurvey = surveys.filterSurvey(data_one);
+
       filteredSurvey.should.have.property('name');
       filteredSurvey.should.have.property('slug');
       filteredSurvey.should.have.property('id');
@@ -164,6 +148,36 @@ suite('Surveys', function () {
         // Test for unacceptable characters
         /[~`!@#$%\^&*()+;:'",<>\/?\\{}\[\]|]/.test(survey.slug).should.equal(false);
 
+        done();
+      });
+    });
+
+    test('Adding a user to a survey', function (done) {
+      // Create two cookie jars
+
+      // Make sure we're logged in with user A.
+
+      // Create the survey
+      request.post({url: url, json: data_one}, function (error, response, body) {
+        should.not.exist(error);
+        response.statusCode.should.equal(201);
+
+        var survey = body.surveys[0];
+        var url = BASEURL + '/surveys/' + survey.id + '/users';
+        var user = {
+          'user': {
+            'email': 'matth@localdata.com',
+          }
+        };
+
+        request.post({url: url, json: user}, function (error, response, body) {
+          should.not.exist(error);
+          response.statusCode.should.equal(201);
+
+          // Make sure we can acccess the survey as User B
+
+
+        });
         done();
       });
     });

@@ -89,7 +89,6 @@ function setup(app, db, idgen, collectionName) {
           if (handleError(err)) { return; }
 
           var survey = items[0];
-          var trimmedSurvey; 
 
           // If there are no results, it's a 404
           if (items.length === 0) {
@@ -105,9 +104,20 @@ function setup(app, db, idgen, collectionName) {
             console.log('!!! Items: ' + JSON.stringify(items));
           }
 
-          // Send the survey
-          response.send({survey: items[0]});
-          return;
+          // If the user is logged in and owns this survey,
+          // Add details about the other users here.
+          if(req.user !== undefined) {
+            console.log(survey.users);
+            users.User.find(survey.users, function(error, users) {
+              survey.users = users;
+              response.send({survey: survey});
+              return;
+            });
+          }else {
+
+            // Otherwise, just send the survey back.
+            response.send({survey: survey});
+          }
         });
       });
     });
@@ -116,7 +126,7 @@ function setup(app, db, idgen, collectionName) {
 
   // Set the users on a survey
   // GET http://localhost:3000/api/surveys/{SURVEY ID}/users
-  app.post('/api/surveys/:sid', function(req, response) {
+  app.post('/api/surveys/:sid/add', function(req, response) {
     var handleError = util.makeErrorHandler(response);
 
     getCollection(function(err, collection) {
@@ -148,16 +158,14 @@ function setup(app, db, idgen, collectionName) {
 
           var body = request.body.user;
 
+
+          // Check if the user exists
           User.findOne({email: body.email}, function(error, user){
-            if(body.action === 'add') {
-
+            if(error !== undefined) {
+              return();
             }
 
-            if(body.action === 'remove') {
 
-            }
-
-            // Attempt to find the user
             // Get the user ID
             // Add the user ID to the array
 
@@ -218,7 +226,6 @@ function setup(app, db, idgen, collectionName) {
     
     var total = surveys.length;
     var count = 0;
-
 
     getCollection(function(err, collection) {
 
