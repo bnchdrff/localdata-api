@@ -4,15 +4,15 @@
 
 var server = require('../web.js');
 var assert = require('assert');
-var util = require('util');
+var passport = require('passport');
 var request = require('request');
 var should = require('should');
+var util = require('util');
 
 var settings = require('../settings-test.js');
 var users = require('../users.js');
 var surveys = require('../surveys.js');
-
-var passport = require('passport');
+var testutil = require('./testutil.js');
 
 
 var BASEURL = 'http://localhost:' + settings.port + '/api';
@@ -154,11 +154,54 @@ suite('Surveys', function () {
 
     test('Adding a user to a survey', function (done) {
       // Create two cookie jars
+      testutil.setupUsers(function(userACookies, userBCookies) {
 
-      // Make sure we're logged in with user A.
+        // Create the survey with user A
+        request.post({
+          url: url,
+          json: data_one,
+          jar: userACookies
+        }, function (error, response, body) {
+          should.not.exist(error);
+          response.statusCode.should.equal(201);
+
+          // Prepare to add another user
+          var survey = body.surveys[0];
+          var url = BASEURL + '/surveys/' + survey.id + '/users';
+          var user = {
+            'user': {
+              'email': testutil.userB.email
+            }
+          };
+
+          // Add the second user
+          request.post({
+            url: url,
+            json: user,
+            jar: userACookies
+          }, function (error, response, body) {
+            should.not.exist(error);
+            response.statusCode.should.equal(200);
+
+            // Make sure the second user is on the access list for the survey
+            var url = BASEURL + '/surveys/' + survey.id +
+            request.get({url: BASEURL + '/surveys'}, function (error, response, body) {
+              var parsed = JSON.parse(body);
+              var survey = parsed.surveys[0];
+              survey.users.should.include(testutil.userA._id);
+              done();
+            });
+          });
+        });
+
+      });
+    });
+
+
+    test('Remove a user from a surey', function (done) {
 
       // Create the survey
-      request.post({url: url, json: data_one}, function (error, response, body) {
+      request.del({url: url, json: data_one}, function (error, response, body) {
         should.not.exist(error);
         response.statusCode.should.equal(201);
 
@@ -166,7 +209,7 @@ suite('Surveys', function () {
         var url = BASEURL + '/surveys/' + survey.id + '/users';
         var user = {
           'user': {
-            'email': 'matth@localdata.com',
+            'email': 'matth@localdata.com'
           }
         };
 
@@ -181,6 +224,7 @@ suite('Surveys', function () {
         done();
       });
     });
+
 
   });
 

@@ -7,10 +7,11 @@
  * ==================================================
  */
 
-var util = require('./util');
-var users = require('./users');
-var makeSlug = require('slugs');
+var _ = require('lodash');
 
+var makeSlug = require('slugs');
+var users = require('./users');
+var util = require('./util');
 
 // Trim a survey to only show non-sensitive properties
 function filterSurvey(survey) {
@@ -18,6 +19,7 @@ function filterSurvey(survey) {
   filteredSurvey.name = survey.name;
   filteredSurvey.slug = survey.slug;
   filteredSurvey.id = survey.id;
+  filteredSurvey.users = survey.users;
   return filteredSurvey;
 }
 
@@ -124,9 +126,9 @@ function setup(app, db, idgen, collectionName) {
   });
 
 
-  // Set the users on a survey
-  // GET http://localhost:3000/api/surveys/{SURVEY ID}/users
-  app.post('/api/surveys/:sid/add', function(req, response) {
+  // Add a user to a survey
+  // POST http://localhost:3000/api/surveys/{SURVEY ID}/users
+  app.post('/api/surveys/:sid/users', function(req, response) {
     var handleError = util.makeErrorHandler(response);
 
     getCollection(function(err, collection) {
@@ -156,23 +158,29 @@ function setup(app, db, idgen, collectionName) {
             console.log('!!! Items: ' + JSON.stringify(items));
           }
 
-          var body = request.body.user;
+          var body = req.body;
+          console.log('req body', body);
+          
+          // Find the user
+          users.User.findOne({email: body.user.email}, function(error, user){
+            if (handleError(err)) { return; }
 
-
-          // Check if the user exists
-          User.findOne({email: body.email}, function(error, user){
-            if(error !== undefined) {
-              return();
+            if(user === null) {
+              response.send(400, error);
+              return;
             }
 
-
-            // Get the user ID
             // Add the user ID to the array
+            if(_.contains(survey.users, user._id))
+            survey.users.append(user._id);
+
 
             // Save the survey
             // Success / failure
-            response.send(200);
-            return;
+            collection.save(survey, survey, {save: true}, function(error){
+              if (handleError(err)) { return; }
+              response.send(200);
+            });
           });
         });
       });

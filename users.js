@@ -120,11 +120,17 @@ function setup(app, db, idgen, collectionName) {
         if(error) {
           if(error.code === 11000) {
             // Mongo duplicate key error
-            done({code: 400, err: 'An account with this email aready exists'});
+            done({
+              code: 400,
+              err: 'An account with this email already exists'
+            });
             return;
           }
           // Some other error
-          done({code: 500, err: 'Sorry, an error occurred. Please try again.'});
+          done({
+            code: 500,
+            err: 'Sorry, an error occurred. Please try again.'
+          });
           return;
         }else {
           done(null, documents[0]);
@@ -293,7 +299,7 @@ function setup(app, db, idgen, collectionName) {
       if(error) {
         // TODO
         // Log better
-        response.send(error.code, "We're sorry, an error has occurred");
+        response.send(error.code, error.err);
       }else {
         req.logIn(results, function(error) {
           if (error) {
