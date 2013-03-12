@@ -198,7 +198,7 @@ function ensureStructure(db, callback) {
 
       chain([function indexCreated(done) {
         // Make sure email is unique
-          collection.ensureIndex({ "email": 1 }, { unique: true }, done);
+          collection.ensureIndex({ 'email': 1 }, { unique: true }, done);
       }], done)();
     });
   }

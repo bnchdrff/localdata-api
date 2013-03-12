@@ -81,7 +81,7 @@ function setup(app, db, idgen, collectionName) {
    * @param  {Function} done  Params error, and an array of user objects
    */
   User.find = function(users, done) {
-    
+
   };
 
   // Create a given user
@@ -111,12 +111,21 @@ function setup(app, db, idgen, collectionName) {
     // We only want to save the parameters we decide on.
     var safeQuery = User.sanitizeToSave(query);
 
-    // Blank out the query so we can't use it anymore
+    // Blank out the query so we don't accidentially use it anymore
     query = {};
 
     // Get ready to save the user
     getCollection(function(error, collection) {
       collection.insert(safeQuery, {safe: true}, function(error, documents) {
+        console.log("Attempted", safeQuery, " got", error, documents);
+
+        // Check what we have in the DB
+        collection.find({'email': 'b@localdata.com'}, function(e, c){
+          c.toArray(function(e, i){
+            console.log("Item ", i);
+          });
+        });
+
         if(error) {
           if(error.code === 11000) {
             // Mongo duplicate key error
@@ -155,8 +164,8 @@ function setup(app, db, idgen, collectionName) {
 
     // We only want to save the parameters we decide on.
     var safeQuery = User.sanitizeToSave(query);
-    
-    // Blank out the query so we can't use it anymore
+
+    // Blank out the query so we don't accidentially use it anymore
     query = {};
 
     getCollection(function(error, collection) {

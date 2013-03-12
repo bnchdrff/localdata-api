@@ -3,6 +3,7 @@
 'use strict';
 
 var assert = require('assert');
+var _ = require('lodash');
 var mongo = require('mongodb');
 var passport = require('passport');
 var request = require('request');
@@ -18,13 +19,13 @@ var BASEURL = 'http://localhost:' + settings.port + '/api';
 
 var userA = {
   'name': 'User A',
-  'email': 'a@localdata.com',
+  "email": "a@localdata.com",
   'password': 'password'
 };
 
 var userB = {
   'name': 'User B',
-  'email': 'b@localdata.com',
+  "email": "b@localdata.com",
   'password': 'drowssap'
 };
 
@@ -65,19 +66,23 @@ var setupUsers = function(done) {
   var userAJar = request.jar();
   var userBJar = request.jar();
 
+  var addB = function() {
+    request.post({url: url, json: userB, jar: userBJar}, function (error, response, body) {
+      should.not.exist(error);
+      userB._id = body._id;
+      console.log("Created user", body);
+      console.log(error);
+
+      done(userAJar, userBJar);
+    });
+  };
+
   clearCollection('usersCollection', function(error, response){
     request.post({url: url, json: userA, jar: userAJar}, function (error, response, body) {
       should.not.exist(error);
       userA._id = body._id;
 
-      request.post({url: url, json: userB, jar: userBJar}, function (error, response, body) {
-        should.not.exist(error);
-        userB._id = body._id;
-        console.log("Created user", body);
-        console.log(error);
-
-        done(userAJar, userBJar);
-      });
+      _.delay(addB, 400);
     });
   });
 };
