@@ -519,10 +519,20 @@ function setup(app, db, idgen, collectionName) {
 
         cursor.toArray(function(err, items) {
           if (!items || items.length === 0) {
-            response.send({});
+            response.send({
+                type: 'FeatureCollection',
+                features: []
+            });
             return;
           }
-          response.send({'responses': items});
+
+          // response.send({'responses': items});
+          // Switched this to send geoJSON:
+          response.send({
+              type: 'FeatureCollection',
+              features: resultsToGeoJSON(items)
+          });
+
         });
       });
     });
