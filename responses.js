@@ -513,7 +513,8 @@ function setup(app, db, idgen, collectionName) {
     
     getCollection(function(err, collection) {
       collection.find(query,
-                      {'sort': [['created', 'desc']]},
+                      {}, // we don't need to sort on this query 
+                          // was: 'sort': [['created', 'desc']]
                       function(err, cursor) {
         if (handleError(err, response)) { return; }
 
