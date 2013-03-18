@@ -66,23 +66,24 @@ var setupUsers = function(done) {
   var userAJar = request.jar();
   var userBJar = request.jar();
 
-  var addB = function() {
-    request.post({url: url, json: userB, jar: userBJar}, function (error, response, body) {
-      should.not.exist(error);
-      userB._id = body._id;
-      console.log("Created user", body);
-      console.log(error);
-
-      done(userAJar, userBJar);
-    });
-  };
-
+  // Clear the collection so we start with a blank slate
   clearCollection('usersCollection', function(error, response){
+
+    // Create the first user
     request.post({url: url, json: userA, jar: userAJar}, function (error, response, body) {
       should.not.exist(error);
       userA._id = body._id;
 
-      _.delay(addB, 400);
+      // Create the second user
+      request.post({url: url, json: userB, jar: userBJar}, function (error, response, body) {
+        should.not.exist(error);
+        userB._id = body._id;
+        console.log("Created user", body);
+        console.log(error);
+
+        done(userAJar, userBJar);
+      });
+
     });
   });
 };
