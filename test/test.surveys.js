@@ -94,7 +94,7 @@ suite('Surveys', function () {
 
   suite("Utilities:", function() {
     test('Filter sensitive data from a survey', function (done) {
-      var filteredSurvey = surveys.filterSurvey(data_one);
+      var filteredSurvey = surveys.filterSurvey(data_one[0]);
 
       filteredSurvey.should.have.property('name');
       filteredSurvey.should.have.property('slug');
