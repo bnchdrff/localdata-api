@@ -1,8 +1,7 @@
-/*
- * Maintenance script to create geospatial index on the geo_info.centroid property
- * geo_info.centroid should be in the format [float lat, float lng]
- * This script also does some minor updates to make sure existing objects fit
- *  that format.
+/**
+ * Fix an issue where checkbox questions were stored with the name "undefined"
+ * - Saves the data in the format QUESTION_NAME-ANSWER_NAME
+ * - Removes the undefined keys
  *
  * Usage:
  * $ mongo server:port/database_name -u username -p password fixGaryMultiples.js
