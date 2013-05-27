@@ -83,7 +83,13 @@ suite('Users -', function () {
   };
 
   suiteSetup(function (done) {
-    server.run(settings, done);
+    server.run(settings, function (error) {
+      if (error) { return done(error); }
+      // We need the email index to be in place, so we can enforce uniqueness
+      // constraints, but we don't automatically create indexes to avoid
+      // ill-timed index creation on production systems.
+      User.ensureIndexes(done);
+    });
   });
 
   suiteTeardown(function () {
@@ -91,7 +97,7 @@ suite('Users -', function () {
   });
 
   suite('finding, creating and editing without the API:', function () {
-    
+
     test('create a user', function (done) {
       clearCollection('usersCollection', function(error, response){
         should.not.exist(error);
@@ -108,7 +114,7 @@ suite('Users -', function () {
     });
 
 
-    test('users must have an email', function (done) { 
+    test('users must have an email', function (done) {
       clearCollection('usersCollection', function(error, response){
         should.not.exist(error);
 
