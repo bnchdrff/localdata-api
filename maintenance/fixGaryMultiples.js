@@ -5,6 +5,7 @@
  *
  * Usage:
  * $ mongo server:port/database_name -u username -p password fixGaryMultiples.js
+ * $ mongo localhost:27017/localdata_beta  fixGaryMultiples.js
  *
  */
 
@@ -30,13 +31,17 @@ var pairs = {
 db.responseCollection.find({'survey': '8a340df0-87af-11e2-9485-c3fff44e7c8e'}).forEach(function(elt){
 
 	for (var key in pairs) {
-    if (elt.responses.hasOwnProperty(key)) {
-      elt.responses[ pairs[key] ] = 'yes'
-      delete elt.responses[key];
+    if (elt.hasOwnProperty('responses')) {
+      if (elt.responses.hasOwnProperty(key)) {
+        elt.responses[ pairs[key] ] = 'yes';
+        delete elt.responses[key];
+      }
+    } else {
+      print("Elt", elt._id, "does not have responses property");
     }
   }
 
-  print(tojson(elt.responses));
+  // print(tojson(elt.responses));
 
   //print(tojson(elt));
   db.responseCollection.save(elt);
