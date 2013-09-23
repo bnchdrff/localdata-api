@@ -12,7 +12,7 @@ settings.secret = process.env.SECRET;
 
 // Email settings
 settings.email = {};
-settings.email.from = 'LocalData <support@localdata.com>';
+settings.email.from = process.env.TEST_EMAIL || 'matth@localdata.com';
 settings.email.to = process.env.TEST_EMAIL || 'matth@localdata.com'; // Send test emails to your address!
 
 // MongoDB
